@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Work Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: 'IBM Plex Mono', 'Fira Mono', monospace;
+      background: var(--wcc-bg);
+      color: var(--wcc-textMuted);
+      transition: background 0.2s, color 0.2s;
+      min-height: 100vh;
+    }
+    #app { min-height: 100vh; position: relative; }
+    .sans { font-family: 'IBM Plex Sans', sans-serif !important; }
+
+    .wcc-btn {
+      cursor: pointer; border-radius: 2px;
+      font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+      letter-spacing: 0.06em; padding: 6px 13px; transition: all 0.12s;
+      background: var(--wcc-surface); color: var(--wcc-textDim);
+      border: 1px solid var(--wcc-border);
+    }
+    .wcc-btn:hover { opacity: 0.8; }
+    .wcc-btn.primary { background: #1E3A5F; color: #5B8AF5; border-color: #5B8AF5; }
+    .wcc-btn.danger  { color: #F87171; border-color: #F8717140; }
+    .wcc-btn.purple  { color: #A78BFA; border-color: #A78BFA40; }
+    .wcc-btn.orange  { color: #F5A623; border-color: #F5A62340; }
+
+    .nav-btn {
+      background: none; border: none; border-bottom: 1px solid transparent;
+      color: var(--wcc-textDim); font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px; letter-spacing: 0.08em; cursor: pointer;
+      padding: 5px 11px; border-radius: 2px; transition: all 0.12s;
+      text-transform: uppercase;
+    }
+    .nav-btn:hover { color: var(--wcc-text); background: var(--wcc-surface); }
+    .nav-btn.on { color: #5B8AF5; border-bottom-color: #5B8AF5; background: var(--wcc-surface); }
+
+    .card { background: var(--wcc-surface); border: 1px solid var(--wcc-border); border-radius: 2px; }
+    .row-item {
+      cursor: pointer; border-bottom: 1px solid var(--wcc-headerBorder);
+      padding: 11px 16px; display: flex; align-items: flex-start;
+      gap: 10px; transition: background 0.1s;
+    }
+    .row-item:hover { background: var(--wcc-rowHover); }
+    .tag {
+      border-radius: 2px; font-size: 9px; padding: 2px 6px;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+    .wcc-input {
+      background: var(--wcc-surface); border: 1px solid var(--wcc-border);
+      border-radius: 2px; color: var(--wcc-text);
+      font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+      padding: 8px 11px; width: 100%; outline: none;
+      transition: border-color 0.12s;
+    }
+    .wcc-input:focus { border-color: var(--wcc-borderFocus); }
+    select.wcc-input option { background: var(--wcc-surface); color: var(--wcc-text); }
+
+    .stat-tile {
+      background: var(--wcc-surface); border: 1px solid var(--wcc-border);
+      border-radius: 2px; padding: 13px 15px; cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .stat-tile:hover { border-color: var(--wcc-borderFocus); }
+
+    .day-col {
+      background: var(--wcc-surface); border: 1px solid var(--wcc-border);
+      border-radius: 2px; display: flex; flex-direction: column; min-height: 180px;
+    }
+    .day-col.is-today { border-color: #5B8AF580; background: var(--wcc-todayBg); }
+    .day-col.is-past  { opacity: 0.55; }
+    .day-col.is-weekend { opacity: 0.65; }
+
+    .cal-chip {
+      padding: 5px 7px; border-radius: 2px; margin: 0 5px 4px;
+      cursor: pointer; border-left: 2px solid transparent; transition: opacity 0.1s;
+    }
+    .cal-chip:hover { opacity: 0.7; }
+
+    .bubble-u {
+      background: var(--wcc-surface); border: 1px solid var(--wcc-border);
+      border-radius: 2px; padding: 11px 13px; margin-left: 28px;
+      font-size: 13px; line-height: 1.6; color: var(--wcc-text);
+    }
+    .bubble-a {
+      background: var(--wcc-bg); border: 1px solid var(--wcc-border);
+      border-left: 2px solid #5B8AF5; border-radius: 2px;
+      padding: 11px 13px; margin-right: 28px;
+      font-size: 13px; line-height: 1.7;
+      font-family: 'IBM Plex Sans', sans-serif; color: var(--wcc-text);
+    }
+
+    #toast-el {
+      position: fixed; top: 16px; right: 16px; z-index: 999;
+      border-radius: 2px; padding: 8px 14px; font-size: 10px;
+      letter-spacing: 0.06em; pointer-events: none;
+      display: none; transition: opacity 0.3s;
+    }
+
+    /* API key modal */
+    #api-modal {
+      display: none; position: fixed; inset: 0; z-index: 1000;
+      background: rgba(0,0,0,0.7); align-items: center; justify-content: center;
+    }
+    #api-modal.open { display: flex; }
+    #api-modal-box {
+      background: var(--wcc-surface); border: 1px solid var(--wcc-border);
+      border-radius: 4px; padding: 28px 32px; max-width: 460px; width: 90%;
+    }
+
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-thumb { background: var(--wcc-border); }
+
+    #header {
+      position: sticky; top: 0; z-index: 100;
+      border-bottom: 1px solid var(--wcc-headerBorder);
+      padding: 16px 28px; display: flex; align-items: center;
+      justify-content: space-between; flex-wrap: wrap; gap: 10px;
+      background: var(--wcc-bg);
+    }
+    #main { padding: 22px 28px; max-width: 1200px; margin: 0 auto; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="toast-el"></div>
+
+  <!-- API Key Modal -->
+  <div id="api-modal">
+    <div id="api-modal-box">
+      <div class="sans" style="font-size:17px;font-weight:600;color:var(--wcc-text);margin-bottom:8px;">Anthropic API Key</div>
+      <div style="font-size:12px;color:var(--wcc-textDim);margin-bottom:16px;line-height:1.6;">
+        The AI agent requires an Anthropic API key. Your key is stored only in your browser's localStorage and never sent anywhere except directly to Anthropic's API.
+        Get one at <a href="https://console.anthropic.com" target="_blank" style="color:#5B8AF5;">console.anthropic.com</a>
+      </div>
+      <input id="api-key-input" class="wcc-input" type="password" placeholder="sk-ant-..." style="margin-bottom:12px;">
+      <div style="display:flex;gap:8px;">
+        <button class="wcc-btn primary" onclick="saveApiKey()">Save Key</button>
+        <button class="wcc-btn" onclick="closeApiModal()">Cancel</button>
+        <button class="wcc-btn danger" onclick="clearApiKey()" style="margin-left:auto;">Clear Key</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="header">
+    <div>
+      <div style="font-size:9px;color:var(--wcc-textFaint);letter-spacing:0.18em;text-transform:uppercase;margin-bottom:3px;">Work Command Center</div>
+      <div id="header-sub" class="sans" style="font-size:20px;font-weight:600;color:var(--wcc-text);letter-spacing:-0.02em;"></div>
+    </div>
+    <div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;">
+      <button class="nav-btn" data-view="week">Week</button>
+      <button class="nav-btn" data-view="board">Board</button>
+      <button class="nav-btn" data-view="list">List</button>
+      <button class="nav-btn" data-view="add">+ New</button>
+      <button class="nav-btn" data-view="agent">⚡ Agent</button>
+      <div style="width:1px;height:16px;background:var(--wcc-border);margin:0 5px;"></div>
+      <button id="theme-btn" class="wcc-btn" style="font-size:9px;">☾ Dark</button>
+      <button class="wcc-btn" style="font-size:9px;" onclick="document.getElementById('api-modal').classList.add('open')">🔑 API Key</button>
+    </div>
+  </div>
+
+  <div id="main"></div>
+</div>
+
+<script>
+const STORAGE_KEY='wcc-items-v3';const NOTES_KEY='wcc-notes-v3';const PADS_KEY='wcc-pads-v3';const THEME_KEY='wcc-theme-v3';const API_KEY='wcc-apikey-v1';
+const CATS={project:{label:'Project',icon:'▣',color:'#5B8AF5'},deliverable:{label:'Deliverable',icon:'◆',color:'#F5A623'},followup:{label:'Follow-up',icon:'↺',color:'#A78BFA'},ticket:{label:'Ticket',icon:'⬡',color:'#34D399'},meeting:{label:'Meeting',icon:'◈',color:'#F472B6'}};
+const STATUS={notstarted:{label:'Not Started',color:'#555'},inprogress:{label:'In Progress',color:'#5B8AF5'},blocked:{label:'Blocked',color:'#F87171'},waitingon:{label:'Waiting On',color:'#F5A623'},done:{label:'Done',color:'#34D399'}};
+const PRIORITY={critical:{label:'P0 Critical',color:'#F87171'},high:{label:'P1 High',color:'#F5A623'},medium:{label:'P2 Medium',color:'#5B8AF5'},low:{label:'P3 Low',color:'#475569'}};
+const SAMPLE=[{id:1,title:'Push prod updates',category:'deliverable',priority:'critical',status:'inprogress',due:'2026-05-02',time:'19:00',waitingOn:'',notes:'Maintenance window 19:00-23:00',done:false},{id:2,title:'Complete Relato questionnaire',category:'deliverable',priority:'high',status:'notstarted',due:'2026-05-05',time:'',waitingOn:'',notes:'Due this week',done:false},{id:3,title:'Ask GDIT HR about HSA eligibility',category:'followup',priority:'medium',status:'notstarted',due:'2026-05-07',time:'',waitingOn:'GDIT HR',notes:'Can I contribute to HSA with current health plan?',done:false},{id:4,title:'Q1 milestone review',category:'meeting',priority:'medium',status:'notstarted',due:'2026-05-06',time:'10:00',waitingOn:'',notes:'Prep slides beforehand',done:false},{id:5,title:'Follow up with Fidelity',category:'followup',priority:'medium',status:'waitingon',due:'2026-05-07',time:'',waitingOn:'Fidelity',notes:'IRA to Roth conversion next steps',done:false},{id:6,title:'Sprint planning',category:'meeting',priority:'high',status:'notstarted',due:'2026-05-05',time:'09:00',waitingOn:'',notes:'Q2 kickoff sprint',done:false},{id:7,title:'1:1 with manager',category:'meeting',priority:'medium',status:'notstarted',due:'2026-05-06',time:'14:00',waitingOn:'',notes:'',done:false}];
+const THEMES={dark:{bg:'#080C14',surface:'#0D1420',border:'#1E293B',borderFocus:'#334155',text:'#E2E8F0',textMuted:'#CBD5E1',textDim:'#475569',textFaint:'#334155',textGhost:'#1E293B',headerBorder:'#111827',rowHover:'#0D1420',todayBg:'#0D1826',label:'☾ Dark'},dim:{bg:'#1C1C1E',surface:'#2C2C2E',border:'#3A3A3C',borderFocus:'#48484A',text:'#F2F2F7',textMuted:'#EBEBF0',textDim:'#8E8E93',textFaint:'#48484A',textGhost:'#3A3A3C',headerBorder:'#3A3A3C',rowHover:'#2C2C2E',todayBg:'#1C2A3A',label:'◑ Dim'},light:{bg:'#F2F2F7',surface:'#FFFFFF',border:'#D1D1D6',borderFocus:'#A0A0A8',text:'#1C1C1E',textMuted:'#3A3A3C',textDim:'#6E6E73',textFaint:'#C7C7CC',textGhost:'#E5E5EA',headerBorder:'#D1D1D6',rowHover:'#F8F8FA',todayBg:'#EBF2FF',label:'☀ Light'}};
+
+let state={items:[],view:'week',selected:null,filterCat:'all',filterStatus:'active',weekOffset:0,form:{title:'',category:'meeting',priority:'medium',status:'notstarted',due:'',time:'',waitingOn:'',notes:''},agentMsgs:[],agentLoading:false,quickNotes:'',pads:{followups:'',blockers:'',ideas:''},theme:'dark'};
+
+function ls(k,v){if(v===undefined){try{return localStorage.getItem(k);}catch(e){return null;}}try{localStorage.setItem(k,v);}catch(e){}}
+function loadState(){
+  try{const s=ls(STORAGE_KEY);state.items=s?JSON.parse(s):SAMPLE.map(i=>({...i}));}catch(e){state.items=SAMPLE.map(i=>({...i}));}
+  try{const s=ls(NOTES_KEY);if(s)state.quickNotes=s;}catch(e){}
+  try{const s=ls(PADS_KEY);if(s)state.pads=JSON.parse(s);}catch(e){}
+  try{const s=ls(THEME_KEY);if(s)state.theme=s;}catch(e){}
+}
+function saveItems(){ls(STORAGE_KEY,JSON.stringify(state.items));}
+function saveNotes(){ls(NOTES_KEY,state.quickNotes);}
+function savePads(){ls(PADS_KEY,JSON.stringify(state.pads));}
+function saveTheme(){ls(THEME_KEY,state.theme);}
+function getApiKey(){return ls(API_KEY)||'';}
+function saveApiKey(){const k=document.getElementById('api-key-input')?.value?.trim();if(k){ls(API_KEY,k);closeApiModal();showToast('API key saved');}}
+function clearApiKey(){ls(API_KEY,'');document.getElementById('api-key-input').value='';showToast('API key cleared','info');}
+function closeApiModal(){document.getElementById('api-modal').classList.remove('open');}
+
+function applyTheme(){
+  const T=THEMES[state.theme];
+  const r=document.getElementById('app');
+  Object.keys(T).forEach(k=>{if(k!=='label')r.style.setProperty('--wcc-'+k,T[k]);});
+  document.getElementById('theme-btn').textContent=T.label;
+}
+
+function toDS(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');return`${y}-${m}-${dd}`;}
+function daysUntil(ds){const t=new Date();t.setHours(0,0,0,0);const x=new Date(ds+'T00:00:00');x.setHours(0,0,0,0);return Math.round((x-t)/86400000);}
+function shortDate(ds){return new Date(ds+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});}
+function dueLabel(ds){const n=daysUntil(ds);if(n<0)return`${Math.abs(n)}d overdue`;if(n===0)return'Due today';if(n===1)return'Due tomorrow';if(n<=7)return`Due in ${n}d`;return shortDate(ds);}
+function getWeekStart(date){const d=new Date(date),day=d.getDay(),diff=day===0?-6:1-day;d.setDate(d.getDate()+diff);d.setHours(0,0,0,0);return d;}
+function addDays(date,n){const d=new Date(date);d.setDate(d.getDate()+n);return d;}
+
+let toastTimer=null;
+function showToast(msg,type='ok'){
+  const el=document.getElementById('toast-el');if(!el)return;
+  el.textContent=msg;el.style.display='block';
+  el.style.background=type==='err'?'#2A0A0A':THEMES[state.theme].surface;
+  el.style.border=`1px solid ${type==='err'?'#F87171':'#34D399'}`;
+  el.style.color=type==='err'?'#F87171':'#34D399';
+  if(toastTimer)clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{el.style.display='none';},2500);
+}
+
+function getActive(){return state.items.filter(i=>!i.done);}
+function getFiltered(){
+  return getActive()
+    .filter(i=>state.filterCat==='all'||i.category===state.filterCat)
+    .filter(i=>{if(state.filterStatus==='active')return i.status!=='done';if(state.filterStatus==='blocked')return i.status==='blocked'||i.status==='waitingon';if(state.filterStatus==='overdue')return daysUntil(i.due)<0;return true;})
+    .sort((a,b)=>{const po=['critical','high','medium','low'];const pd=po.indexOf(a.priority)-po.indexOf(b.priority);return pd!==0?pd:new Date(a.due)-new Date(b.due);});
+}
+
+function updateStatus(id,status){state.items=state.items.map(i=>i.id===id?{...i,status,done:status==='done'}:i);saveItems();showToast('Status updated');render();}
+function deleteItem(id){state.items=state.items.filter(i=>i.id!==id);saveItems();state.view='week';showToast('Removed','info');render();}
+function addItem(){
+  const f=state.form;
+  if(!f.title||!f.due){showToast('Title and due date required','err');return;}
+  state.items=[...state.items,{...f,id:Date.now(),done:false}];
+  saveItems();state.form={title:'',category:'meeting',priority:'medium',status:'notstarted',due:'',time:'',waitingOn:'',notes:''};
+  state.view='week';showToast('Item added');render();
+}
+function quickAsk(q){state.view='agent';render();setTimeout(()=>sendAgent(q),100);}
+
+async function sendAgent(overrideMsg){
+  const apiKey=getApiKey();
+  if(!apiKey){document.getElementById('api-modal').classList.add('open');document.getElementById('api-key-input').value='';showToast('API key required for agent','err');return;}
+  const msg=overrideMsg||'';if(!msg.trim())return;
+  const userMsg={role:'user',content:msg};
+  state.agentMsgs=[...state.agentMsgs,userMsg];state.agentLoading=true;render();
+  const today=new Date();
+  const ctx=getActive().map(i=>`[${CATS[i.category]?.label}] "${i.title}" | ${PRIORITY[i.priority]?.label} | ${STATUS[i.status]?.label} | Due:${i.due}${i.time?' @'+i.time:''}${i.waitingOn?' | Waiting:'+i.waitingOn:''}${i.notes?' | '+i.notes:''}`).join('\n')||'No items.';
+  const sys=`You are a sharp work operations assistant for someone overtasked. Cut through noise. Current work items:\n${ctx}\nToday:${toDS(today)}\nRules: Be direct. For priorities give numbered list. Draft full emails when asked. Flag blockers proactively. If overdue say so. Keep responses tight. Think like a chief of staff.`;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:state.agentMsgs.map(m=>({role:m.role,content:m.content}))})});
+    const data=await res.json();
+    if(data.error){throw new Error(data.error.message);}
+    const reply=data.content?.map(b=>b.text||'').join('')||'No response.';
+    state.agentMsgs=[...state.agentMsgs,{role:'assistant',content:reply}];
+  }catch(e){state.agentMsgs=[...state.agentMsgs,{role:'assistant',content:`Error: ${e.message}. Check your API key.`}];}
+  state.agentLoading=false;render();
+  setTimeout(()=>{const c=document.getElementById('agent-msgs');if(c)c.scrollTop=c.scrollHeight;},50);
+}
+
+function renderHeader(){
+  const active=getActive(),overdue=active.filter(i=>daysUntil(i.due)<0),blocked=active.filter(i=>i.status==='blocked');
+  const today=new Date();
+  let sub=today.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+` <span style="color:var(--wcc-textDim);font-weight:300;font-size:14px;">${active.length} open`;
+  if(overdue.length>0)sub+=` · <span style="color:#F87171">${overdue.length} overdue</span>`;
+  if(blocked.length>0)sub+=` · <span style="color:#A78BFA">${blocked.length} blocked</span>`;
+  sub+='</span>';
+  document.getElementById('header-sub').innerHTML=sub;
+  document.querySelectorAll('.nav-btn').forEach(b=>{b.classList.toggle('on',b.dataset.view===state.view);});
+}
+
+function renderWeek(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const weekStart=addDays(getWeekStart(today),state.weekOffset*7);
+  const weekDays=Array.from({length:7},(_,i)=>addDays(weekStart,i));
+  const active=getActive();
+  const overdue=active.filter(i=>daysUntil(i.due)<0);
+  const blocked=active.filter(i=>i.status==='blocked');
+  const waitingOn=active.filter(i=>i.status==='waitingon');
+  const critical=active.filter(i=>i.priority==='critical'||i.priority==='high');
+  const weekLabel=state.weekOffset===0?'This Week':state.weekOffset===1?'Next Week':state.weekOffset===-1?'Last Week':`${weekStart.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${addDays(weekStart,6).toLocaleDateString('en-US',{month:'short',day:'numeric'})}`;
+  const weekDayStrs=weekDays.map(toDS);
+  const beyondWeek=active.filter(i=>!weekDayStrs.includes(i.due));
+
+  const stats=[{label:'Overdue',val:overdue.length,color:'#F87171',q:"What's overdue and what should I do about it?"},{label:'Blocked',val:blocked.length,color:'#A78BFA',q:"What's blocked and how do I unblock it?"},{label:'Waiting On',val:waitingOn.length,color:'#F5A623',q:"What am I waiting on? Should I follow up?"},{label:'High Pri',val:critical.length,color:'#5B8AF5',q:'What are my highest priority items?'}];
+  let html=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;">`;
+  stats.forEach(s=>{html+=`<div class="stat-tile" onclick="quickAsk(${JSON.stringify(s.q)})"><div style="font-size:9px;color:var(--wcc-textFaint);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:7px;">${s.label}</div><div class="sans" style="font-size:28px;font-weight:600;color:${s.val>0?s.color:'var(--wcc-textGhost)'};">${s.val}</div><div style="font-size:8px;color:var(--wcc-textFaint);margin-top:5px;">tap → agent</div></div>`;});
+  html+=`</div>`;
+  html+=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+    <button class="wcc-btn" onclick="state.weekOffset--;render()">‹</button>
+    <span class="sans" style="font-size:15px;font-weight:600;color:var(--wcc-text);min-width:100px;text-align:center;">${weekLabel}</span>
+    <button class="wcc-btn" onclick="state.weekOffset++;render()">›</button>
+    ${state.weekOffset!==0?`<button class="wcc-btn" style="color:#5B8AF5;border-color:#5B8AF540;font-size:9px;" onclick="state.weekOffset=0;render()">Today</button>`:''}
+    <button class="wcc-btn primary" style="margin-left:auto;font-size:9px;" onclick="state.view='add';render()">+ Add item</button>
+    <button class="wcc-btn purple" style="font-size:9px;" onclick="quickAsk('Walk me through my week day by day — meetings, due outs, and what I need to prep.')">⚡ Brief me</button>
+  </div>`;
+
+  html+=`<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;">`;
+  weekDays.forEach((dayObj,idx)=>{
+    const ds=toDS(dayObj),isToday=ds===toDS(today),isPast=dayObj<today&&!isToday,isWeekend=idx>=5;
+    const dayItems=active.filter(i=>i.due===ds).sort((a,b)=>{if(a.time&&b.time)return a.time.localeCompare(b.time);if(a.time)return -1;if(b.time)return 1;return ['critical','high','medium','low'].indexOf(a.priority)-['critical','high','medium','low'].indexOf(b.priority);});
+    const meetings=dayItems.filter(i=>i.category==='meeting'),dueOuts=dayItems.filter(i=>i.category!=='meeting');
+    let cls='day-col'+(isToday?' is-today':'')+(isPast?' is-past':'')+(isWeekend?' is-weekend':'');
+    html+=`<div class="${cls}"><div style="padding:8px 9px 7px;border-bottom:1px solid var(--wcc-headerBorder);">
+      <div style="font-size:9px;color:${isToday?'#5B8AF5':isWeekend?'var(--wcc-textFaint)':'var(--wcc-textDim)'};letter-spacing:0.1em;text-transform:uppercase;">${dayObj.toLocaleDateString('en-US',{weekday:'short'})}</div>
+      <div class="sans" style="font-size:20px;font-weight:${isToday?700:300};color:${isToday?'#5B8AF5':isPast?'var(--wcc-textFaint)':'var(--wcc-text)'};">${dayObj.getDate()}</div>
+      ${isToday?'<div style="width:16px;height:2px;background:#5B8AF5;border-radius:1px;margin-top:3px;"></div>':''}
+      ${dayItems.length>0?`<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap;">${meetings.length>0?`<span class="tag" style="background:#F472B618;color:#F472B6;">${meetings.length} mtg</span>`:''}${dueOuts.length>0?`<span class="tag" style="background:#F5A62318;color:#F5A623;">${dueOuts.length} due</span>`:''}</div>`:''}
+    </div><div style="flex:1;padding:5px 0;overflow-y:auto;max-height:240px;">`;
+    if(dayItems.length===0)html+=`<div style="font-size:9px;color:var(--wcc-textGhost);padding:10px 9px;letter-spacing:0.06em;">clear</div>`;
+    meetings.forEach(item=>{html+=`<div class="cal-chip" style="border-left-color:#F472B6;background:#F472B608;" onclick="state.selected=${item.id};state.view='detail';render()"><div style="font-size:8px;color:#F472B6;margin-bottom:1px;">◈${item.time?' '+item.time:''}</div><div class="sans" style="font-size:10px;color:var(--wcc-textMuted);font-weight:500;line-height:1.3;">${item.title}</div></div>`;});
+    dueOuts.forEach(item=>{const c=CATS[item.category],p=PRIORITY[item.priority];html+=`<div class="cal-chip" style="border-left-color:${p.color};background:${c.color}08;" onclick="state.selected=${item.id};state.view='detail';render()"><div style="display:flex;align-items:center;margin-bottom:1px;"><span style="font-size:8px;color:${c.color};">${c.icon}</span><span style="width:4px;height:4px;border-radius:50%;background:${p.color};margin-left:auto;flex-shrink:0;"></span></div><div class="sans" style="font-size:10px;color:${isPast?'var(--wcc-textDim)':'var(--wcc-textMuted)'};font-weight:500;line-height:1.3;">${item.title}</div>${item.status==='blocked'?`<div style="font-size:8px;color:#F87171;margin-top:1px;">blocked</div>`:''}${item.status==='waitingon'?`<div style="font-size:8px;color:#F5A623;margin-top:1px;">↺ ${item.waitingOn}</div>`:''}</div>`;});
+    html+=`</div></div>`;
+  });
+  html+=`</div>`;
+
+  if(beyondWeek.length>0){
+    html+=`<div style="margin-top:20px;"><div style="font-size:9px;color:var(--wcc-textFaint);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:10px;">Beyond this week (${beyondWeek.length})</div><div style="display:flex;gap:8px;flex-wrap:wrap;">`;
+    beyondWeek.slice(0,6).forEach(item=>{const c=CATS[item.category],p=PRIORITY[item.priority];html+=`<div onclick="state.selected=${item.id};state.view='detail';render();" style="background:var(--wcc-surface);border:1px solid var(--wcc-border);border-left:2px solid ${p.color};border-radius:2px;padding:7px 10px;cursor:pointer;min-width:130px;max-width:190px;"><div style="font-size:8px;color:${c.color};margin-bottom:3px;">${c.icon} ${shortDate(item.due)}</div><div class="sans" style="font-size:11px;color:var(--wcc-textDim);font-weight:500;line-height:1.3;">${item.title}</div></div>`;});
+    if(beyondWeek.length>6)html+=`<div onclick="state.view='list';render();" style="background:var(--wcc-surface);border:1px solid var(--wcc-border);border-radius:2px;padding:7px 12px;cursor:pointer;display:flex;align-items:center;color:var(--wcc-textDim);font-size:10px;">+${beyondWeek.length-6} more →</div>`;
+    html+=`</div></div>`;
+  }
+
+  html+=`<div style="margin-top:24px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+    <div style="font-size:9px;color:var(--wcc-textFaint);letter-spacing:0.14em;text-transform:uppercase;">Quick Notes</div>
+    <div style="font-size:8px;color:var(--wcc-textGhost);">auto-saved</div>
+    ${state.quickNotes.trim()?`<button class="wcc-btn purple" style="margin-left:auto;font-size:9px;" onclick="quickAsk('Here are my quick notes — turn any into action items or flag anything important: &quot;'+state.quickNotes.substring(0,300)+'&quot;')">⚡ Ask agent</button>`:''}
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+    <textarea id="main-notes" class="wcc-input" rows="6" placeholder="Scratch pad — thoughts, follow-ups..." style="resize:none;line-height:1.7;font-size:11px;color:var(--wcc-textDim);">${state.quickNotes}</textarea>
+    <div style="display:flex;flex-direction:column;gap:7px;">
+      ${['followups','blockers','ideas'].map((k,i)=>{const labels=['Follow-ups needed','Blockers to flag','Ideas / parking lot'];const ph=["Who do I need to chase?","What's in my way?","Things for later..."];return`<div style="flex:1;background:var(--wcc-surface);border:1px solid var(--wcc-border);border-radius:2px;padding:8px 11px;display:flex;flex-direction:column;"><div style="font-size:8px;color:var(--wcc-textFaint);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;">${labels[i]}</div><textarea data-pad="${k}" class="wcc-input" rows="2" placeholder="${ph[i]}" style="border:none;padding:0;font-size:10px;resize:none;background:transparent;flex:1;color:var(--wcc-textDim);">${state.pads[k]||''}</textarea></div>`;}).join('')}
+    </div>
+  </div></div>`;
+
+  document.getElementById('main').innerHTML=html;
+  const mn=document.getElementById('main-notes');
+  if(mn)mn.addEventListener('input',e=>{state.quickNotes=e.target.value;saveNotes();});
+  document.querySelectorAll('[data-pad]').forEach(el=>{el.addEventListener('input',e=>{state.pads[e.target.dataset.pad]=e.target.value;savePads();});});
+}
+
+function renderBoard(){
+  const active=getActive(),overdue=active.filter(i=>daysUntil(i.due)<0),blocked=active.filter(i=>i.status==='blocked'),waitingOn=active.filter(i=>i.status==='waitingon'),critical=active.filter(i=>i.priority==='critical'||i.priority==='high');
+  const filtered=getFiltered();
+  const stats=[{label:'Overdue',val:overdue.length,color:'#F87171',q:"What's overdue?"},{label:'Blocked',val:blocked.length,color:'#A78BFA',q:"What's blocked?"},{label:'Waiting',val:waitingOn.length,color:'#F5A623',q:'What am I waiting on?'},{label:'High Pri',val:critical.length,color:'#5B8AF5',q:'Highest priority items?'}];
+  let html=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;">`;
+  stats.forEach(s=>{html+=`<div class="stat-tile" onclick="quickAsk(${JSON.stringify(s.q)})"><div style="font-size:9px;color:var(--wcc-textFaint);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:7px;">${s.label}</div><div class="sans" style="font-size:28px;font-weight:600;color:${s.val>0?s.color:'var(--wcc-textGhost)'};">${s.val}</div></div>`;});
+  html+=`</div>`;
+  const cols=[{key:'notstarted',label:'Not Started',items:filtered.filter(i=>i.status==='notstarted')},{key:'inprogress',label:'In Progress',items:filtered.filter(i=>i.status==='inprogress')},{key:'blocked',label:'Blocked / Waiting',items:[...filtered.filter(i=>i.status==='blocked'),...filtered.filter(i=>i.status==='waitingon')]}];
+  html+=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">`;
+  cols.forEach(col=>{
+    html+=`<div><div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><div style="width:6px;height:6px;border-radius:50%;background:${STATUS[col.key]?.color||'#A78BFA'};"></div><span style="font-size:9px;color:var(--wcc-textDim);letter-spacing:0.12em;text-transform:uppercase;">${col.label}</span><span style="font-size:9px;color:var(--wcc-textFaint);margin-left:auto;">${col.items.length}</span></div><div style="display:flex;flex-direction:column;gap:8px;">`;
+    if(col.items.length===0)html+=`<div style="font-size:10px;color:var(--wcc-textGhost);padding:12px 0;text-align:center;">—</div>`;
+    col.items.forEach(item=>{const c=CATS[item.category],p=PRIORITY[item.priority],days=daysUntil(item.due);html+=`<div class="card" style="padding:12px 14px;cursor:pointer;border-left:2px solid ${p.color};" onclick="state.selected=${item.id};state.view='detail';render()"><div class="sans" style="font-size:12px;color:var(--wcc-text);line-height:1.4;margin-bottom:8px;font-weight:500;">${item.title}</div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;"><span class="tag" style="background:${c.color}18;color:${c.color};">${c.icon} ${c.label}</span><span style="font-size:9px;color:${days<0?'#F87171':days<=2?'#F5A623':'var(--wcc-textDim)'};margin-left:auto;">${dueLabel(item.due)}</span></div>${item.waitingOn?`<div style="font-size:9px;color:#F5A623;margin-top:6px;">↺ ${item.waitingOn}</div>`:''}</div>`;});
+    html+=`</div></div>`;
+  });
+  html+=`</div><div style="display:flex;gap:6px;margin-top:18px;flex-wrap:wrap;"><span style="font-size:9px;color:var(--wcc-textFaint);letter-spacing:0.1em;text-transform:uppercase;align-self:center;margin-right:4px;">Filter:</span>`;
+  [['all','All'],['meeting','Meetings'],['project','Projects'],['deliverable','Deliverables'],['followup','Follow-ups']].forEach(([k,l])=>{html+=`<button class="wcc-btn" style="${state.filterCat===k?'background:#1E3A5F;color:#5B8AF5;':''}" onclick="state.filterCat='${k}';render()">${l}</button>`;});
+  html+=`</div>`;
+  document.getElementById('main').innerHTML=html;
+}
+
+function renderList(){
+  const filtered=getFiltered();
+  let html=`<div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">`;
+  [['all','All'],['meeting','Meetings'],['project','Projects'],['deliverable','Deliverables'],['followup','Follow-ups'],['ticket','Tickets']].forEach(([k,l])=>{html+=`<button class="wcc-btn" style="${state.filterCat===k?'background:#1E3A5F;color:#5B8AF5;':''}" onclick="state.filterCat='${k}';render()">${l}</button>`;});
+  html+=`<div style="width:1px;background:var(--wcc-border);margin:0 4px;"></div>`;
+  [['active','Active'],['blocked','Blocked'],['overdue','Overdue']].forEach(([k,l])=>{html+=`<button class="wcc-btn" style="${state.filterStatus===k?'background:#1E1A2E;color:#A78BFA;':''}" onclick="state.filterStatus='${k}';render()">${l}</button>`;});
+  html+=`</div><div class="card" style="overflow:hidden;">`;
+  if(filtered.length===0)html+=`<div style="padding:40px;text-align:center;color:var(--wcc-textGhost);font-size:11px;">No items.</div>`;
+  filtered.forEach(item=>{const c=CATS[item.category],p=PRIORITY[item.priority],s=STATUS[item.status],days=daysUntil(item.due);html+=`<div class="row-item" onclick="state.selected=${item.id};state.view='detail';render()"><div style="width:3px;border-radius:2px;background:${p.color};flex-shrink:0;align-self:stretch;min-height:36px;"></div><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="color:${c.color};font-size:12px;">${c.icon}</span><span class="sans" style="font-size:13px;font-weight:500;color:var(--wcc-text);">${item.title}</span>${item.waitingOn?`<span class="tag" style="background:#F5A62318;color:#F5A623;">↺ ${item.waitingOn}</span>`:''}</div><div style="display:flex;gap:10px;align-items:center;"><span class="tag" style="background:${s.color}18;color:${s.color};">${s.label}</span><span class="tag" style="background:${c.color}18;color:${c.color};">${c.label}</span><span style="font-size:9px;color:${days<0?'#F87171':days<=2?'#F5A623':'var(--wcc-textDim)'};">${dueLabel(item.due)}${item.time?' · '+item.time:''}</span></div></div><div onclick="event.stopPropagation()"><select class="wcc-input" style="width:auto;font-size:9px;padding:4px 8px;color:${STATUS[item.status].color};" onchange="updateStatus(${item.id},this.value)">${Object.entries(STATUS).map(([k,v])=>`<option value="${k}"${k===item.status?' selected':''}>${v.label}</option>`).join('')}</select></div></div>`;});
+  html+=`</div>`;
+  document.getElementById('main').innerHTML=html;
+}
+
+function renderAdd(){
+  const f=state.form;
+  let html=`<div style="max-width:520px;"><div class="sans" style="font-size:20px;font-weight:600;color:var(--wcc-text);margin-bottom:20px;">New item</div><div style="display:flex;flex-direction:column;gap:12px;">`;
+  html+=`<div><label style="font-size:9px;color:var(--wcc-textDim);letter-spacing:0.1em;text-transform:uppercase;display:block;margin-bottom:5px;">Title *</label><input id="f-title" class="wcc-input" placeholder="What needs to get done?" value="${f.title||''}"></div>`;
+  html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">`;
+  [{id:'f-category',label:'Category',field:'category',opts:Object.entries(CATS).map(([k,v])=>({k,l:`${v.icon} ${v.label}`}))},{id:'f-priority',label:'Priority',field:'priority',opts:Object.entries(PRIORITY).map(([k,v])=>({k,l:v.label}))},{id:'f-status',label:'Status',field:'status',opts:Object.entries(STATUS).filter(([k])=>k!=='done').map(([k,v])=>({k,l:v.label}))}].forEach(s=>{html+=`<div><label style="font-size:9px;color:var(--wcc-textDim);letter-spacing:0.1em;text-transform:uppercase;display:block;margin-bottom:5px;">${s.label}</label><select id="${s.id}" class="wcc-input">${s.opts.map(o=>`<option value="${o.k}"${o.k===f[s.field]?' selected':''}>${o.l}</option>`).join('')}</select></div>`;});
+  html+=`<div><label style="font-size:9px;color:var(--wcc-textDim);letter-spacing:0.1em;text-transform:uppercase;display:block;margin-bottom:5px;">Due Date *</label><input id="f-due" type="date" class="wcc-input" value="${f.due||''}"></div>`;
+  html+=`<div><label style="font-size:9px;color:var(--wcc-textDim);letter-spacing:0.1em;text-transform:uppercase;display:block;margin-bottom:5px;">Time</label><input id="f-time" type="time" class="wcc-input" value="${f.time||''}"></div>`;
+  html+=`<div><label style="font-size:9px;color:var(--wcc-textDim);letter-spacing:0.1em;text-transform:uppercase;display:block;margin-bottom:5px;">Waiting On</label><input id="f-waitingOn" class="wcc-input" placeholder="Person or team…" value="${f.waitingOn||''}"></div>`;
+  html+=`</div><div><label style="font-size:9px;color:var(--wcc-textDim);letter-spacing:0.1em;text-transform:uppercase;display:block;margin-bottom:5px;">Notes</label><textarea id="f-notes" class="wcc-input" rows="3" placeholder="Context, ticket numbers, links…" style="resize:vertical;">${f.notes||''}</textarea></div>`;
+  html+=`<div style="display:flex;gap:8px;"><button class="wcc-btn primary" onclick="collectAndAdd()">Save</button><button class="wcc-btn" onclick="state.view='week';render()">Cancel</button></div></div></div>`;
+  document.getElementById('main').innerHTML=html;
+}
+
+window.collectAndAdd=function(){
+  state.form={title:document.getElementById('f-title')?.value||'',category:document.getElementById('f-category')?.value||'meeting',priority:document.getElementById('f-priority')?.value||'medium',status:document.getElementById('f-status')?.value||'notstarted',due:document.getElementById('f-due')?.value||'',time:document.getElementById('f-time')?.value||'',waitingOn:document.getElementById('f-waitingOn')?.value||'',notes:document.getElementById('f-notes')?.value||''};
+  addItem();
+};
+
+function renderDetail(){
+  const sel=state.items.find(i=>i.id===state.selected);
+  if(!sel){state.view='week';render();return;}
+  const c=CATS[sel.category],p=PRIORITY[sel.priority],days=daysUntil(sel.due);
+  let html=`<div style="max-width:560px;"><button class="nav-btn" style="padding-left:0;margin-bottom:16px;" onclick="state.view='week';render()">← Back</button>
+  <div class="card" style="padding:20px 24px;border-left:3px solid ${p.color};">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;"><span style="color:${c.color};font-size:16px;">${c.icon}</span><span class="tag" style="background:${c.color}18;color:${c.color};">${c.label}</span><span class="tag" style="background:${p.color}18;color:${p.color};">${p.label}</span></div>
+    <div class="sans" style="font-size:22px;font-weight:600;color:var(--wcc-text);line-height:1.3;margin-bottom:14px;">${sel.title}</div>
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;font-size:9px;color:var(--wcc-textDim);letter-spacing:0.08em;">
+      <span>${sel.category==='meeting'?'When:':'Due:'} <span style="color:${days<0?'#F87171':days<=2?'#F5A623':'var(--wcc-textMuted)'};">${shortDate(sel.due)}${sel.time?' · '+sel.time:''}</span></span>
+      <span style="color:${days<0?'#F87171':'var(--wcc-textDim)'};">${dueLabel(sel.due)}</span>
+      ${sel.waitingOn?`<span style="color:#F5A623;">↺ ${sel.waitingOn}</span>`:''}
+    </div>
+    ${sel.notes?`<div style="background:var(--wcc-bg);border-radius:2px;padding:10px 12px;margin-bottom:16px;font-size:12px;color:var(--wcc-textDim);font-family:'IBM Plex Sans',sans-serif;line-height:1.7;">${sel.notes}</div>`:''}
+    <div style="margin-bottom:16px;"><label style="font-size:9px;color:var(--wcc-textDim);letter-spacing:0.1em;text-transform:uppercase;display:block;margin-bottom:6px;">Status</label>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">`;
+  Object.entries(STATUS).forEach(([k,v])=>{html+=`<button class="wcc-btn" style="${sel.status===k?`background:${v.color}22;color:${v.color};border-color:${v.color};`:''}" onclick="updateStatus(${sel.id},'${k}')">${v.label}</button>`;});
+  const titleSafe=sel.title.replace(/['"]/g,'');
+  html+=`</div></div><div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button class="wcc-btn primary" onclick="quickAsk('Help me prepare for or move this forward: &quot;${titleSafe}&quot;')">⚡ Ask agent</button>
+    ${sel.waitingOn?`<button class="wcc-btn orange" onclick="quickAsk('Draft a direct follow-up to ${sel.waitingOn} re: &quot;${titleSafe}&quot;')">Draft follow-up</button>`:''}
+    <button class="wcc-btn danger" style="margin-left:auto;" onclick="deleteItem(${sel.id})">Delete</button>
+  </div></div></div>`;
+  document.getElementById('main').innerHTML=html;
+}
+
+function renderAgent(){
+  const hasKey=!!getApiKey();
+  let html=`<div style="max-width:680px;"><div style="margin-bottom:16px;"><div class="sans" style="font-size:20px;font-weight:600;color:var(--wcc-text);">⚡ Work Agent</div>
+  <div style="font-size:9px;color:var(--wcc-textFaint);letter-spacing:0.08em;margin-top:3px;">Knows all your work items · Drafts emails · Cuts through the noise</div>
+  ${!hasKey?`<div style="margin-top:10px;background:#1A1000;border:1px solid #F5A62340;border-radius:2px;padding:10px 14px;font-size:11px;color:#F5A623;">API key required. <button class="wcc-btn orange" style="font-size:9px;padding:3px 8px;" onclick="document.getElementById('api-modal').classList.add('open')">Add Key →</button></div>`:''}
+  </div>`;
+  if(state.agentMsgs.length===0){
+    html+=`<div style="margin-bottom:14px;"><div style="font-size:9px;color:var(--wcc-textFaint);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;">Quick actions</div><div style="display:flex;flex-direction:column;gap:5px;">`;
+    ['Walk me through my week day by day — meetings and due outs','What are my top 3 priorities right now?',"What's blocked and how do I unblock it?",'I only have 2 hours today. What should I actually do?',"Draft a follow-up email for anything I'm waiting on","What's going to blow up if I don't handle it today?"].forEach(q=>{html+=`<button onclick="quickAsk(${JSON.stringify(q)})" style="text-align:left;background:var(--wcc-surface);border:1px solid var(--wcc-border);border-radius:2px;cursor:pointer;color:var(--wcc-textDim);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:10px 14px;">${q} <span style="color:var(--wcc-textGhost);font-size:11px;">→</span></button>`;});
+    html+=`</div></div>`;
+  }
+  html+=`<div id="agent-msgs" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;max-height:420px;overflow-y:auto;">`;
+  state.agentMsgs.forEach(m=>{if(m.role==='user'){html+=`<div class="bubble-u">${m.content.replace(/</g,'&lt;')}</div>`;}else{html+=`<div class="bubble-a"><div style="font-size:8px;color:var(--wcc-textFaint);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">Work Agent</div>${m.content.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`;}});
+  if(state.agentLoading)html+=`<div class="bubble-a"><div style="font-size:8px;color:var(--wcc-textFaint);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">Work Agent</div><span style="color:var(--wcc-textGhost);">Processing…</span></div>`;
+  html+=`</div><div style="display:flex;gap:8px;">
+    <input id="agent-input" class="wcc-input" placeholder="Ask about priorities, request a draft, get unstuck…" style="flex:1;" ${state.agentLoading?'disabled':''}>
+    <button class="wcc-btn primary" style="flex-shrink:0;" id="agent-send" ${state.agentLoading?'disabled':''}>Send</button>
+    ${state.agentMsgs.length>0?`<button class="wcc-btn" style="flex-shrink:0;" onclick="state.agentMsgs=[];render()">Clear</button>`:''}
+  </div></div>`;
+  document.getElementById('main').innerHTML=html;
+  const inp=document.getElementById('agent-input');
+  const btn=document.getElementById('agent-send');
+  if(inp){inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();const v=inp.value.trim();if(v)sendAgent(v);}});}
+  if(btn){btn.addEventListener('click',()=>{const v=inp?.value?.trim();if(v)sendAgent(v);});}
+}
+
+function render(){
+  applyTheme();renderHeader();
+  ({week:renderWeek,board:renderBoard,list:renderList,add:renderAdd,detail:renderDetail,agent:renderAgent}[state.view]||renderWeek)();
+}
+
+document.addEventListener('click',e=>{
+  const nb=e.target.closest('.nav-btn[data-view]');
+  if(nb){state.view=nb.dataset.view;render();}
+});
+document.getElementById('theme-btn').addEventListener('click',()=>{
+  const keys=Object.keys(THEMES);state.theme=keys[(keys.indexOf(state.theme)+1)%keys.length];
+  saveTheme();render();
+});
+document.getElementById('api-modal').addEventListener('click',e=>{if(e.target===document.getElementById('api-modal'))closeApiModal();});
+window.saveApiKey=saveApiKey;window.clearApiKey=clearApiKey;window.closeApiModal=closeApiModal;
+window.updateStatus=updateStatus;window.deleteItem=deleteItem;window.quickAsk=quickAsk;window.collectAndAdd=collectAndAdd;
+
+loadState();render();
+</script>
+</body>
+</html>
